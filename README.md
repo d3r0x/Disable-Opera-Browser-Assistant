@@ -1,114 +1,238 @@
-# Disable Opera Browser Assistant
+# Disable Opera Browser Assistant (browser_assistant.exe) on Windows
 
-A small PowerShell utility for Windows that disables the **Opera Browser Assistant (`browser_assistant.exe`)** and prevents it from automatically starting again.
+A small PowerShell utility to **disable Opera Browser Assistant (`browser_assistant.exe`) on Windows 10 and Windows 11**.
 
-Opera Browser Assistant can be launched through Windows startup entries and automatically generated Scheduled Tasks such as:
+Opera Browser Assistant may continue to start even after disabling it in Windows Startup Apps because Opera can create additional Scheduled Tasks such as:
 
 ```text
 Opera scheduled assistant Autoupdate 1773747108
 Opera scheduled assistant Autoupdate 1780325480
 ```
 
-The numeric ID at the end may change whenever Opera recreates the task. This script therefore searches using:
+The numeric ID may change whenever Opera recreates the task.
+
+This script automatically finds all matching:
 
 ```text
 Opera scheduled assistant Autoupdate *
 ```
 
-so newly generated task names are detected automatically.
+tasks, disables them, and blocks the Opera Browser Assistant executables from running.
+
+The normal Opera browser auto-update task is **not modified**.
+
+---
+
+## How to use
+
+1. Download:
+
+   ```text
+   OperaBrowserAssistantControl.ps1
+   ```
+
+2. Right-click the file and select **Run with PowerShell**.
+
+   Alternatively, open PowerShell in the script directory and run:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File ".\OperaBrowserAssistantControl.ps1"
+   ```
+
+3. Accept the Administrator/UAC prompt.
+
+4. Select:
+
+   ```text
+   [1] Disable Opera Browser Assistant
+   ```
+
+5. The script will automatically:
+   - find all matching Opera Browser Assistant Scheduled Tasks
+   - show which tasks were found
+   - disable those tasks
+   - block `browser_assistant.exe`
+   - block `assistant_installer.exe`
+   - stop currently running Opera Browser Assistant processes
+   - display the resulting status
+
+You can check everything at any time with:
+
+```text
+[2] Show current status
+```
+
+To undo all changes, select:
+
+```text
+[3] Re-enable Opera Browser Assistant
+```
+
+---
 
 ## What the script does
 
-The script finds all matching Opera Browser Assistant Scheduled Tasks and disables them without affecting the regular Opera browser update task.
+### 1. Disables Opera Browser Assistant Scheduled Tasks
 
-It also blocks execution of:
+The script searches for all Windows Scheduled Tasks matching:
+
+```text
+Opera scheduled assistant Autoupdate *
+```
+
+This is important because Opera may recreate these tasks with a different numeric ID.
+
+For example:
+
+```text
+Opera scheduled assistant Autoupdate 1773747108
+Opera scheduled assistant Autoupdate 1780325480
+```
+
+Both are detected automatically.
+
+The script does **not** disable the regular Opera browser update task.
+
+---
+
+### 2. Blocks browser_assistant.exe from running
+
+The script blocks execution of:
 
 ```text
 %LOCALAPPDATA%\Programs\Opera\assistant\browser_assistant.exe
 %LOCALAPPDATA%\Programs\Opera\assistant\assistant_installer.exe
 ```
 
-using Windows file ACLs and `icacls`.
+using Windows ACL permissions through `icacls`.
 
-The equivalent ACL commands are:
+This is similar to running:
 
 ```cmd
 icacls "%LOCALAPPDATA%\Programs\Opera\assistant\browser_assistant.exe" /deny USER:(RX)
 icacls "%LOCALAPPDATA%\Programs\Opera\assistant\assistant_installer.exe" /deny USER:(RX)
 ```
 
-This prevents the executables from running without deleting or modifying the Opera installation itself.
+This prevents the Opera Browser Assistant executables from running without deleting them.
 
-The script also stops currently running Browser Assistant processes and displays the resulting Scheduled Task and ACL status.
+Because the files remain installed, the change can be reversed.
 
-## Reversible
+---
 
-All changes can be undone from the script.
+### 3. Stops currently running Browser Assistant processes
 
-The **Re-enable Opera Browser Assistant** option enables the matching Scheduled Tasks again and removes the ACL deny rules.
+When disabling the Assistant, the script also attempts to stop:
 
-Equivalent commands:
+```text
+browser_assistant.exe
+assistant_installer.exe
+```
+
+if they are currently running.
+
+---
+
+### 4. Shows the current status
+
+The status option displays:
+
+- all matching Opera Browser Assistant Scheduled Tasks
+- whether they are enabled or disabled
+- the current ACL permissions for both executables
+- whether execution is currently blocked
+
+---
+
+## Re-enable / restore Opera Browser Assistant
+
+All changes made by the script are reversible.
+
+Select:
+
+```text
+[3] Re-enable Opera Browser Assistant
+```
+
+The script will:
+
+- re-enable matching Scheduled Tasks
+- remove the ACL deny rules
+- restore execution permission for the Opera Browser Assistant executables
+
+The equivalent ACL commands are:
 
 ```cmd
 icacls "%LOCALAPPDATA%\Programs\Opera\assistant\browser_assistant.exe" /remove:d USER
 icacls "%LOCALAPPDATA%\Programs\Opera\assistant\assistant_installer.exe" /remove:d USER
 ```
 
-## Usage
+---
 
-Download:
+## Why this project exists
 
-```text
-OperaBrowserAssistantControl.ps1
-```
+On some Opera installations, disabling **Opera Browser Assistant** through the normal Windows Startup Apps menu is not enough.
 
-Right-click the file and run it with PowerShell, or start it from a PowerShell terminal:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File ".\OperaBrowserAssistantControl.ps1"
-```
-
-Administrator privileges are required. The script automatically requests elevation when necessary.
-
-The menu provides:
+Opera can use Windows Scheduled Tasks such as:
 
 ```text
-[1] Disable Opera Browser Assistant
-[2] Show current status
-[3] Re-enable Opera Browser Assistant
-[4] Exit
+Opera scheduled assistant Autoupdate <ID>
 ```
 
-## Why this exists
+and may recreate these tasks later with a new numeric ID.
 
-On some Opera installations, disabling the Browser Assistant through normal Windows startup controls is not sufficient because Opera may create Scheduled Tasks that launch or update the assistant.
+As a result, `browser_assistant.exe` may start again even though it appears to be disabled in Windows startup settings.
 
-These tasks can also be recreated with a different numeric ID.
+This script provides a simple and reversible way to:
 
-This utility provides a simple and reversible way to disable those tasks and prevent the Browser Assistant executable from running.
+- disable Opera Browser Assistant
+- disable Opera Browser Assistant autostart
+- disable automatically recreated Opera Scheduled Tasks
+- block `browser_assistant.exe`
+- block `assistant_installer.exe`
+- restore everything later if needed
 
-The regular Opera browser auto-update Scheduled Task is intentionally left untouched.
+---
 
-## Compatibility
+## Requirements
 
-Designed for Windows 10 and Windows 11 with Windows PowerShell 5.1 or newer.
+- Windows 10 or Windows 11
+- Windows PowerShell 5.1 or newer
+- Administrator privileges
+
+The script automatically requests Administrator privileges when required.
+
+---
+
+## Important
+
+This script targets tasks matching:
+
+```text
+Opera scheduled assistant Autoupdate *
+```
+
+It intentionally does **not** target the normal Opera browser update task:
+
+```text
+Opera scheduled Autoupdate *
+```
+
+This allows Opera itself to continue receiving browser updates.
+
+---
 
 ## Disclaimer
 
 This project is not affiliated with, endorsed by, or associated with Opera Software.
 
-Use it at your own risk. Windows ACL changes can affect application behavior. The script includes a restore option so the changes can be reversed.
+Use this script at your own risk.
 
+The script modifies Windows Scheduled Tasks and file ACL permissions. A restore option is included to reverse the changes.
 
+---
 
-
-
-
-
-
-
-Keywords
+## Keywords
 
 Search terms related to this project:
 
-Opera Browser Assistant · disable Opera Browser Assistant · browser_assistant.exe · disable browser_assistant.exe · block browser_assistant.exe · Opera autostart · Opera startup · Opera scheduled assistant Autoupdate · disable Opera scheduled task · Opera Task Scheduler · Opera Browser Assistant Windows 11 · Opera Browser Assistant Windows 10 · PowerShell Opera · Task Scheduler Opera · icacls Opera · stop Opera Browser Assistant · remove Opera Browser Assistant · prevent Opera Browser Assistant startup
+`Opera Browser Assistant` · `disable Opera Browser Assistant` · `browser_assistant.exe` · `disable browser_assistant.exe` · `block browser_assistant.exe` · `Opera autostart` · `Opera startup` · `Opera scheduled assistant Autoupdate` · `disable Opera scheduled task` · `Opera Task Scheduler` · `Opera Browser Assistant keeps starting` · `Opera Browser Assistant Windows 11` · `Opera Browser Assistant Windows 10` · `PowerShell Opera` · `Task Scheduler Opera` · `icacls Opera` · `stop Opera Browser Assistant` · `remove Opera Browser Assistant` · `prevent Opera Browser Assistant startup`
